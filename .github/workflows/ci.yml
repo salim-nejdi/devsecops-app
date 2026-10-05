@@ -103,7 +103,7 @@ jobs:
           exit-code: '1'
 
 
-  build-and-push:
+  docker-build-scan-push:
     runs-on: ubuntu-24.04
 
     needs:
@@ -112,26 +112,52 @@ jobs:
       - dependency-scan
       - iac-scan
 
-    if: github.event_name == 'push'
+    # On attend le résultat de TOUS les scans.
+    # Le job peut ainsi construire/scanner l'image même si
+    # un autre contrôle sécurité a échoué.
+    if: always() && github.event_name == 'push'
+
+    env:
+      IMAGE_NAME: ghcr.io/salim-nejdi/devsecops-app:${{ github.sha }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t "${IMAGE_NAME}" \
+            .
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE_NAME }}
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: false
+
       - name: Login to GHCR
+        if: |
+          success() &&
+          needs.secret-scan.result == 'success' &&
+          needs.sast.result == 'success' &&
+          needs.dependency-scan.result == 'success' &&
+          needs.iac-scan.result == 'success'
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | \
           docker login ghcr.io \
-          -u "${{ github.actor }}" \
-          --password-stdin
+            -u "${{ github.actor }}" \
+            --password-stdin
 
-      - name: Build image
+      - name: Push image to GHCR
+        if: |
+          success() &&
+          needs.secret-scan.result == 'success' &&
+          needs.sast.result == 'success' &&
+          needs.dependency-scan.result == 'success' &&
+          needs.iac-scan.result == 'success'
         run: |
-          docker build \
-          -t ghcr.io/salim-nejdi/devsecops-app:${GITHUB_SHA::7} \
-          .
-
-      - name: Push image
-        run: |
-          docker push \
-          ghcr.io/salim-nejdi/devsecops-app:${GITHUB_SHA::7}
+          docker push "${IMAGE_NAME}"
