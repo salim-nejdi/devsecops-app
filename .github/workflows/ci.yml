@@ -55,7 +55,7 @@ jobs:
 
   sast:
     runs-on: ubuntu-24.04
-    needs: secret-scan
+    needs: lint-and-test
 
     steps:
       - name: Checkout repository
@@ -67,9 +67,32 @@ jobs:
           config: p/python
 
 
+  dependency-scan:
+    runs-on: ubuntu-24.04
+    needs: lint-and-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trivy dependency scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: false
+
+
   build-and-push:
     runs-on: ubuntu-24.04
-    needs: sast
+
+    needs:
+      - secret-scan
+      - sast
+      - dependency-scan
 
     if: github.event_name == 'push'
 
