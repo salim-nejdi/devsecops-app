@@ -31,7 +31,7 @@ spec:
 
         - name: devsecops-app
 
-          image: devsecops-app:latest
+          image: ghcr.io/salim-nejdi/devsecops-app:76dbe50
 
           imagePullPolicy: IfNotPresent
 
