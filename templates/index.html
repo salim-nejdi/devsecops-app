@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>DevSecOps Inventory</title>
+
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        input {
+            padding: 8px;
+            margin: 5px;
+        }
+
+        button {
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        .section {
+            margin-top: 30px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>
+        DevSecOps Inventory
+    </h1>
+
+
+    <div class="section">
+
+        <h2>
+            Recherche
+        </h2>
+
+        <form
+            method="GET"
+            action="/search"
+        >
+
+            <input
+                type="text"
+                name="q"
+                placeholder="Nom du produit"
+                value="{{ search | safe }}"
+            >
+
+            <button type="submit">
+                Rechercher
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <div class="section">
+
+        <h2>
+            Ajouter un produit
+        </h2>
+
+        <form
+            method="POST"
+            action="/add"
+        >
+
+            <input
+                type="text"
+                name="name"
+                placeholder="Nom"
+                required
+            >
+
+            <input
+                type="text"
+                name="description"
+                placeholder="Description"
+                required
+            >
+
+            <button type="submit">
+                Ajouter
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <div class="section">
+
+        <h2>
+            Ajouter une image
+        </h2>
+
+        <form
+            method="POST"
+            action="/upload"
+            enctype="multipart/form-data"
+        >
+
+            <input
+                type="file"
+                name="image"
+            >
+
+            <button type="submit">
+                Envoyer
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <div class="section">
+
+        <h2>
+            Inventaire
+        </h2>
+
+        <table>
+
+            <thead>
+
+            <tr>
+
+                <th>
+                    ID
+                </th>
+
+                <th>
+                    Nom
+                </th>
+
+                <th>
+                    Description
+                </th>
+
+                <th>
+                    Action
+                </th>
+
+            </tr>
+
+            </thead>
+
+            <tbody>
+
+            {% for product in products %}
+
+            <tr>
+
+                <td>
+                    {{ product["id"] }}
+                </td>
+
+                <td>
+                    {{ product["name"] | safe }}
+                </td>
+
+                <td>
+                    {{ product["description"] | safe }}
+                </td>
+
+                <td>
+
+                    <a href="/delete/{{ product['id'] }}">
+                        Supprimer
+                    </a>
+
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+</body>
+
+</html>

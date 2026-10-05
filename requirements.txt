@@ -1,0 +1,7 @@
+Flask==2.2.2
+Werkzeug==2.2.2
+Jinja2==3.1.2
+requests==2.28.1
+SQLAlchemy==1.4.46
+PyYAML==6.0
+Pillow==9.2.0

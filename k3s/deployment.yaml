@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+
+kind: Deployment
+
+metadata:
+
+  name: devsecops-app
+
+  labels:
+    app: devsecops-app
+
+spec:
+
+  replicas: 1
+
+  selector:
+
+    matchLabels:
+      app: devsecops-app
+
+  template:
+
+    metadata:
+
+      labels:
+        app: devsecops-app
+
+    spec:
+
+      containers:
+
+        - name: devsecops-app
+
+          image: devsecops-app:latest
+
+          imagePullPolicy: IfNotPresent
+
+          ports:
+
+            - containerPort: 5000
+
+          env:
+
+            - name: ENVIRONMENT
+              value: production
+
+            - name: DATABASE_PASSWORD
+              value: devsecops-password-2026
+
+          securityContext:
+
+            privileged: true
+
+            allowPrivilegeEscalation: true
+
+          resources:
+
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
