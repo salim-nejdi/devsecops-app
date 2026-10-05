@@ -53,9 +53,23 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
-  build-and-push:
+  sast:
     runs-on: ubuntu-24.04
     needs: secret-scan
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: p/python
+
+
+  build-and-push:
+    runs-on: ubuntu-24.04
+    needs: sast
 
     if: github.event_name == 'push'
 
