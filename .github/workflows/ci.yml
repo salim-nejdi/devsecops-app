@@ -225,6 +225,35 @@ jobs:
 
 
 
+  sbom:
+    runs-on: ubuntu-24.04
+    needs: lint-and-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image for SBOM
+        run: |
+          docker build -t devsecops-app:sbom .
+
+      - name: Generate SBOM with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: devsecops-app:sbom
+          format: cyclonedx
+          output: sbom.cdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+
+
+
+
 
 
 
