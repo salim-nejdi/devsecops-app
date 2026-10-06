@@ -6,8 +6,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
 
 jobs:
 
@@ -256,6 +254,11 @@ jobs:
   docker-build-scan-push:
     runs-on: ubuntu-24.04
 
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
     needs:
       - secret-scan
       - sast
@@ -312,6 +315,7 @@ jobs:
       - name: Login to GHCR
         if: |
           success() &&
+          github.ref == 'refs/heads/main' &&
           needs.secret-scan.result == 'success' &&
           needs.sast.result == 'success' &&
           needs.dependency-scan.result == 'success' &&
@@ -327,6 +331,7 @@ jobs:
       - name: Push image to GHCR
         if: |
           success() &&
+          github.ref == 'refs/heads/main' &&
           needs.secret-scan.result == 'success' &&
           needs.sast.result == 'success' &&
           needs.dependency-scan.result == 'success' &&
@@ -340,6 +345,7 @@ jobs:
         id: image_digest
         if: |
           success() &&
+          github.ref == 'refs/heads/main' &&
           needs.secret-scan.result == 'success' &&
           needs.sast.result == 'success' &&
           needs.dependency-scan.result == 'success' &&
@@ -358,16 +364,20 @@ jobs:
           echo "Image digest: ${IMAGE_WITH_DIGEST}"
 
       - name: Sign image with Cosign
-        if: steps.image_digest.outputs.image != ''
+        if: |
+          github.ref == 'refs/heads/main' &&
+          steps.image_digest.outputs.image != ''
         run: |
           cosign sign \
             --yes \
             "${{ steps.image_digest.outputs.image }}"
 
       - name: Verify Cosign signature
-        if: steps.image_digest.outputs.image != ''
+        if: |
+          github.ref == 'refs/heads/main' &&
+          steps.image_digest.outputs.image != ''
         run: |
           cosign verify \
             "${{ steps.image_digest.outputs.image }}" \
-            --certificate-identity-regexp="^https://github.com/salim-nejdi/devsecops-app/.github/workflows/ci.yml@refs/heads/.*$" \
+            --certificate-identity-regexp="^https://github.com/salim-nejdi/devsecops-app/.github/workflows/ci.yml@refs/heads/main$" \
             --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
