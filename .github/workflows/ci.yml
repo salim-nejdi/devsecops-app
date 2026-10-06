@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
 
@@ -149,6 +150,7 @@ jobs:
         if: steps.trivy_iac.outcome == 'failure'
         run: exit 1
 
+
   policy-as-code:
     runs-on: ubuntu-24.04
     needs: lint-and-test
@@ -224,7 +226,6 @@ jobs:
           artifact_name: zap-report
 
 
-
   sbom:
     runs-on: ubuntu-24.04
     needs: lint-and-test
@@ -252,12 +253,6 @@ jobs:
           path: sbom.cdx.json
 
 
-
-
-
-
-
-
   docker-build-scan-push:
     runs-on: ubuntu-24.04
 
@@ -277,6 +272,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.0
+
+      - name: Check Cosign version
+        run: |
+          cosign version
 
       - name: Build Docker image
         run: |
@@ -334,3 +336,38 @@ jobs:
         run: |
           docker push "${IMAGE_NAME}"
 
+      - name: Get pushed image digest
+        id: image_digest
+        if: |
+          success() &&
+          needs.secret-scan.result == 'success' &&
+          needs.sast.result == 'success' &&
+          needs.dependency-scan.result == 'success' &&
+          needs.iac-scan.result == 'success' &&
+          needs.policy-as-code.result == 'success' &&
+          needs.dast-scan.result == 'success'
+        run: |
+          DIGEST=$(docker buildx imagetools inspect \
+            "${IMAGE_NAME}" \
+            --format '{{json .Manifest.Digest}}' \
+            | tr -d '"')
+
+          IMAGE_WITH_DIGEST="ghcr.io/salim-nejdi/devsecops-app@${DIGEST}"
+
+          echo "image=${IMAGE_WITH_DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "Image digest: ${IMAGE_WITH_DIGEST}"
+
+      - name: Sign image with Cosign
+        if: steps.image_digest.outputs.image != ''
+        run: |
+          cosign sign \
+            --yes \
+            "${{ steps.image_digest.outputs.image }}"
+
+      - name: Verify Cosign signature
+        if: steps.image_digest.outputs.image != ''
+        run: |
+          cosign verify \
+            "${{ steps.image_digest.outputs.image }}" \
+            --certificate-identity-regexp="^https://github.com/salim-nejdi/devsecops-app/.github/workflows/ci.yml@refs/heads/.*$" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
