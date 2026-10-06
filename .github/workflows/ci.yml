@@ -235,7 +235,7 @@ jobs:
           needs.secret-scan.result == 'success' &&
           needs.sast.result == 'success' &&
           needs.dependency-scan.result == 'success' &&
-          needs.iac-scan.result == 'success'
+          needs.iac-scan.result == 'success' &&
           needs.policy-as-code.result == 'success'
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | \
@@ -249,7 +249,7 @@ jobs:
           needs.secret-scan.result == 'success' &&
           needs.sast.result == 'success' &&
           needs.dependency-scan.result == 'success' &&
-          needs.iac-scan.result == 'success'
+          needs.iac-scan.result == 'success' &&
           needs.policy-as-code.result == 'success'
         run: |
           docker push "${IMAGE_NAME}"
