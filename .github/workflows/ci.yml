@@ -61,10 +61,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install Semgrep
+        run: |
+          python -m pip install semgrep
+
       - name: Run Semgrep
-        uses: semgrep/semgrep-action@v1
+        id: semgrep
+        continue-on-error: true
+        run: |
+          semgrep scan \
+            --config p/python \
+            --sarif \
+            --output semgrep.sarif \
+            .
+
+      - name: Upload Semgrep report
+        uses: actions/upload-artifact@v4
         with:
-          config: p/python
+          name: semgrep-report
+          path: semgrep.sarif
+
+      - name: Apply Semgrep Security Gate
+        if: steps.semgrep.outcome == 'failure'
+        run: exit 1
 
 
   dependency-scan:
@@ -76,14 +95,28 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Trivy dependency scan
+        id: trivy_deps
+        continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
           scanners: vuln
           severity: CRITICAL,HIGH
+          format: json
+          output: trivy-dependencies.json
           exit-code: '1'
           ignore-unfixed: false
+
+      - name: Upload dependency report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-dependencies-report
+          path: trivy-dependencies.json
+
+      - name: Apply dependency Security Gate
+        if: steps.trivy_deps.outcome == 'failure'
+        run: exit 1
 
 
   iac-scan:
@@ -95,12 +128,26 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Trivy IaC scan
+        id: trivy_iac
+        continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: .
           severity: CRITICAL,HIGH
+          format: json
+          output: trivy-iac.json
           exit-code: '1'
+
+      - name: Upload IaC report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-iac-report
+          path: trivy-iac.json
+
+      - name: Apply IaC Security Gate
+        if: steps.trivy_iac.outcome == 'failure'
+        run: exit 1
 
 
   docker-build-scan-push:
@@ -112,9 +159,6 @@ jobs:
       - dependency-scan
       - iac-scan
 
-    # On attend le résultat de TOUS les scans.
-    # Le job peut ainsi construire/scanner l'image même si
-    # un autre contrôle sécurité a échoué.
     if: always() && github.event_name == 'push'
 
     env:
@@ -131,13 +175,27 @@ jobs:
             .
 
       - name: Trivy image scan
+        id: trivy_image
+        continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ${{ env.IMAGE_NAME }}
           severity: CRITICAL,HIGH
+          format: json
+          output: trivy-image.json
           exit-code: '1'
           ignore-unfixed: false
+
+      - name: Upload image report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-report
+          path: trivy-image.json
+
+      - name: Apply image Security Gate
+        if: steps.trivy_image.outcome == 'failure'
+        run: exit 1
 
       - name: Login to GHCR
         if: |
