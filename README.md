@@ -1,52 +1,113 @@
-# Conftest
+# DevSecOps - Projet
 
-[![Go Report Card](https://goreportcard.com/badge/open-policy-agent/opa)](https://goreportcard.com/report/open-policy-agent/conftest) [![Netlify](https://api.netlify.com/api/v1/badges/2d928746-3380-4123-b0eb-1fd74ba390db/deploy-status)](https://app.netlify.com/sites/vibrant-villani-65041c/deploys)
+Projet réalisé dans le cadre du module **DevSecOps – ESGI M2**.
 
-Conftest helps you write tests against structured configuration data. Using Conftest you can
-write tests for your Kubernetes configuration, Tekton pipeline definitions, Terraform code,
-Serverless configs or any other config files.
+L’objectif est de mettre en place une chaîne de livraison sécurisée autour d’une application Flask volontairement vulnérable.
 
-Conftest uses the Rego language from [Open Policy Agent](https://www.openpolicyagent.org/) for writing
-the assertions. You can read more about Rego in the [Policy Language](https://www.openpolicyagent.org/docs/policy-language)
-section in the Open Policy Agent documentation.
+**BONUS:** Un bot ChatOps Discord récupère les résultats des pipelines GitHub Actions, centralise les findings de sécurité et utilise **OpenAI Codex** pour analyser les vulnérabilités et proposer des corrections.
 
-Here's a quick example. Save the following as `policy/deployment.rego`:
+Le projet couvre l’ensemble du cycle :
 
-```rego
-package main
+**Code → Tests → Scans de sécurité → Security Gates → Analyse IA → Remédiation sur branche dédiée→ Re-scan → Merge + Livraison**
 
-deny contains msg if {
-  input.kind == "Deployment"
-  not input.spec.template.spec.securityContext.runAsNonRoot
+---
 
-  msg := "Containers must not run as root"
-}
+## 1. Objectif du projet
 
-deny contains msg if {
-  input.kind == "Deployment"
-  not input.spec.selector.matchLabels.app
+L’application présente dans la branche `main` contient volontairement plusieurs vulnérabilités afin de tester la capacité de la chaîne CI/CD à les détecter et à bloquer la livraison.
 
-  msg := "Containers must provide app label for pod selectors"
-}
-```
+La plateforme mise en place permet notamment de :
 
-Assuming you have a Kubernetes deployment in `deployment.yaml` you can run Conftest like so:
+- vérifier la qualité du code ;
+- exécuter les tests automatisés ;
+- détecter les secrets ;
+- analyser le code avec du SAST ;
+- analyser les dépendances ;
+- analyser les manifests Kubernetes ;
+- appliquer des politiques de sécurité avec OPA / Conftest ;
+- analyser l’image Docker ;
+- exécuter un scan DAST ;
+- générer un SBOM ;
+- bloquer la livraison lorsqu’une vulnérabilité critique ou élevée est détectée ;
+- signer l’image finale avec Cosign ;
+- proposer des remédiations via un bot ChatOps.
 
-```console
-$ conftest test deployment.yaml
-FAIL - deployment.yaml - Containers must not run as root
-FAIL - deployment.yaml - Containers must provide app label for pod selectors
+---
 
-2 tests, 0 passed, 0 warnings, 2 failures, 0 exceptions
-```
+## 2. Architecture
 
-Conftest isn't specific to Kubernetes. It will happily let you write tests for any configuration files in a variety of different formats. See the [documentation](https://www.conftest.dev/) for [installation instructions](https://www.conftest.dev/install/) and
-more details about the features.
-
-## Want to contribute to Conftest?
-
-* See [DEVELOPMENT.md](DEVELOPMENT.md) to build and test Conftest itself.
-* See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
-
-For discussions and questions join us on the [Open Policy Agent Slack](https://slack.openpolicyagent.org/)
-in the `#opa-conftest` channel.
+```text
+Développeur
+    |
+    v
+GitHub
+    |
+    v
+GitHub Actions
+    |
+    +--> Ruff / Pytest
+    |
+    +--> Gitleaks
+    |
+    +--> Semgrep
+    |
+    +--> Trivy Dependencies
+    |
+    +--> Trivy IaC
+    |
+    +--> OPA / Conftest
+    |
+    +--> OWASP ZAP
+    |
+    +--> CycloneDX SBOM
+                   |
+                   v
+              SECURITY GATES
+                    |
+             Vulnérabilité ?
+               /         \
+             oui         non
+              |            |
+              v            v
+        Livraison       Build image
+         bloquée            |
+              |             v
+              |         Trivy Image
+              |             |
+              |             v
+              |           GHCR
+              |             |
+              |             v
+              |          Cosign
+              |             |
+              |             v
+              |            K3s
+              |
+              v
+        Bot ChatOps Discord
+              |
+              v
+         OpenAI Codex
+              |
+              v
+        Analyse des findings
+              |
+              v
+      Proposition de remédiation
+              |
+              v
+       Branche remediation/*
+              |
+              v
+         Nouvelle pipeline
+              |
+              v
+            Re-scan
+              |
+              v
+       Corrections validées ?
+          /             \
+        non             oui
+         |               |
+         v               v
+  Nouvelle remédiation   Merge / Livraison
