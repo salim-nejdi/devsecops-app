@@ -1,6 +1,6 @@
 # Compte rendu — DevSecOps Projet
 
-## 1. Objetci
+## 1. Objetcif
 
 Ce document décrit le **Threat Modeling** du projet devsecops.
 
